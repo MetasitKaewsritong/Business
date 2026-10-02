@@ -1,8 +1,9 @@
-# Build slides-group1.pptx from WORKSHOP-REVISED.md content.  Run: python build-slides.py
+# Build slides-groupV2.pptx.  Run: python build-slides.py
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR
+from pptx.enum.dml import MSO_LINE
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.oxml.ns import qn
 from PIL import Image
@@ -102,11 +103,26 @@ def base(kicker, notes=None):
     pic(s, "assets/logo-if.png", 0.97, 0.12, h=0.6)
     text(s, 3.0, 0, W - 6.0, 0.84, "88732065 Business Process 2569-1", 20, color=WHITE, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
     text(s, W - 3.25, 0, 3.0, 0.84, "กลุ่มที่ 1", 20, color=WHITE, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
-    text(s, W / 2 - 3.5, 1.5, 7.0, 0.3, kicker, 14, True, BLUE, PP_ALIGN.CENTER)   # page number goes on the right, see page_numbers()
+    if kicker:
+        text(s, W / 2 - 3.5, 1.5, 7.0, 0.3, kicker, 14, True, BLUE, PP_ALIGN.CENTER)   # page number goes on the right, see page_numbers()
     text(s, L, 1.5, 3.0, 0.3, "รหัสนิสิต", 14, True, BLUE)  # placeholder: presenter fills in
     if notes:
         s.notes_slide.notes_text_frame.text = notes
     return s
+
+
+def pin(s):
+    """Keep the shape just added where it is: shift_up() skips it."""
+    s.shapes[-1].name = "pin"
+
+
+def deco(s, right=True, y=3.0):
+    """Corner triangles from the template; the left one is the right one mirrored. Runs off the bottom edge on purpose."""
+    w = 4.233
+    d = pic(s, "assets/deco-corner.png", W - w if right else 0, y, w=w)
+    if not right:
+        d._element.spPr.find(qn("a:xfrm")).set("flipH", "1")
+    pin(s)
 
 
 def content(kicker, title, notes=None):
@@ -180,6 +196,8 @@ def pill(s, x, y, label, on=True, w=0.7):
 
 
 DANGER = RGBColor(0xC6, 0x28, 0x28)
+GOOD, GTINT = RGBColor(0x2E, 0x7D, 0x32), RGBColor(0xE8, 0xF5, 0xE9)   # solution boxes: pale green, text in GOOD
+RTINT = RGBColor(0xFD, 0xEC, 0xEC)       # problem boxes: pale red, heading in DANGER, body in INK
 
 
 def browser(s, active, staff=False):
@@ -249,15 +267,15 @@ def shift_up():
     """Lift content toward the banner: 8 presenters stand in front and block the bottom of the screen."""
     for n, sl in enumerate(prs.slides):
         for sh in sl.shapes:
-            if sh.top < Inches(0.95):          # banner stays put
+            if sh.top < Inches(0.95) or sh.name == "pin":          # banner and pinned shapes stay put
                 continue
             head = sh.top < Inches(1.9)   # section label, student id, title
             sh.top -= Inches(0.55 if head else 0.7 if n == 0 else 0.85)
 
 
-# รหัสนิสิตของผู้พูดแต่ละหน้า (หน้า 1-13) แก้ตรงนี้ถ้าสลับคนพูด
-SIDS = ["67160403", "67160403", "67160403", "67160005", "67160003", "67160018",
-        "67160042", "67160042", "67160178", "67160178", "67160025", "67160193", "67160193"]
+# รหัสนิสิตของผู้พูดแต่ละหน้า (หน้า 1-15) แก้ตรงนี้ถ้าสลับคนพูด
+SIDS = ["67160403", "67160403", "67160403", "67160403", "67160005", "67160003", "67160018",
+        "67160042", "67160042", "67160178", "67160178", "67160025", "67160193", "67160193", "67160193"]
 
 
 def page_numbers():
@@ -306,13 +324,30 @@ def wf_panel(s, user, points, note=None):
 
 
 # 1 ─ ปก
-s = base("นำเสนอ ณ วันที่ 7 ตุลาคม 2569")
-text(s, 1, 3.3, W - 2, 1.7, ["ระบบจองห้องเรียน ห้องประชุม", "และอุปกรณ์ภายในคณะ"], 40, True, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
-pic(s, "assets/template-laptop.png", 0.71, 5.35, w=1.54)
-pic(s, "assets/template-calendar.png", 10.82, 5.35, w=1.92)
+s = base("")
+deco(s, right=False)
+deco(s)
+text(s, 0.6, 2.3, W - 1.2, 2.1, [[("ระบบจองห้องเรียน ห้องประชุม", {"gap": 0})], [("และอุปกรณ์ภายในคณะ", {"gap": 0})]], 52, True, BLUE, PP_ALIGN.CENTER, MSO_ANCHOR.MIDDLE)
+pin(s)
+text(s, 0.6, 4.75, W - 1.2, 0.4, "นำเสนอ ณ วันที่ 7 ตุลาคม 2569", 20, True, MUTED, PP_ALIGN.CENTER)
+pin(s)
 
-# 2 ─ สารบัญ
-s = content("ภาพรวม", "สารบัญ")
+# 2 ─ สมาชิก (เรียงตามรหัสนิสิต)
+s = content("", "สมาชิก")
+deco(s, y=2.16)
+members = [("67160003", "ชุติพนธ์ จิตต์รุ่งเรืองสุข"), ("67160005", "เมธาสิทธิ์ แก้วศรีทอง"), ("67160018", "ภูมิพัฒน์ ขันอาสา"),
+           ("67160025", "ชิษณุพงศ์ โรจน์เลิศกิจจา"), ("67160042", "มนทกานต์ ปาลี"), ("67160178", "จตุพร ธรรมฤทธิ์"),
+           ("67160193", "พัชรพงษ์ สังข์กล่อม"), ("67160403", "พชร ปฏิมาการ")]
+for i, (sid, name) in enumerate(members):
+    y = 2.95 + i * 0.48
+    text(s, 2.7, y, 0.45, 0.36, f"{i + 1}.", 18, color=MUTED, anchor=MSO_ANCHOR.MIDDLE)
+    text(s, 3.25, y, 1.4, 0.36, sid, 18, True, anchor=MSO_ANCHOR.MIDDLE)
+    c = s.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, Inches(4.8), Inches(y + 0.18), Inches(5.85), Inches(y + 0.18))
+    c.line.color.rgb, c.line.width, c.line.dash_style = LINE, Pt(3), MSO_LINE.ROUND_DOT
+    text(s, 6.2, y, 3.6, 0.36, name, 18, anchor=MSO_ANCHOR.MIDDLE)
+
+# 3 ─ สารบัญ
+s = content("", "สารบัญ")
 toc = [("01", "ปัญหา", "การจองที่กระจัดกระจาย และผลที่ตามมา"),
        ("02", "ทางออก", "ระบบจองกลาง โครงหน้าจอ และผังงาน"),
        ("03", "ความต้องการ", "สิ่งที่ระบบช่วยได้ และใครได้ประโยชน์"),
@@ -338,9 +373,9 @@ text(s, 4.75, 3.0, 3.2, 3.57, [[("เจ้าหน้าที่", {"size": 2
                                [("จากหลายแหล่งด้วยตนเอง", {"size": 18, "color": WHITE, "gap": 0})]],
      align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
 arrow(s, 8.32, 4.66)
-box(s, 8.8, 3.0, R - 8.8, 3.57, YTINT)
-text(s, 9.1, 3.0, R - 9.4, 3.57, [[("เมื่อเกิดปัญหา", {"size": 24, "bold": True})],
-                                 [("เจ้าหน้าที่ต้องจัดการเองทั้งหมด", {"size": 20, "gap": 10})]],
+box(s, 8.8, 3.0, R - 8.8, 3.57, RTINT)
+text(s, 9.1, 3.0, R - 9.4, 3.57, [[("เมื่อเกิดปัญหา", {"size": 24, "bold": True, "color": DANGER})],
+                                 [("เจ้าหน้าที่ต้องจัดการเองทั้งหมด", {"size": 18, "gap": 10})]],
      align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
 
 # 4 ─ ผลกระทบ: 3 ปัญหา
@@ -351,14 +386,14 @@ cards = [("เสียเวลา", "ทุกคำขอต้องถา�
 cw = (CW - 2 * 0.3) / 3
 for i, (th, d) in enumerate(cards):
     x = L + i * (cw + 0.3)
-    box(s, x, 2.95, cw, 2.3, TINT)
-    text(s, x + 0.35, 3.25, cw - 0.7, 1.9, [[(th, {"size": 24, "bold": True, "color": BLUE})]] + [[(t, {"size": 18, "gap": 0 if j else 10})] for j, t in enumerate([d] if isinstance(d, str) else d)])
+    box(s, x, 2.95, cw, 2.3, RTINT)
+    text(s, x + 0.35, 3.25, cw - 0.7, 1.9, [[(th, {"size": 24, "bold": True, "color": DANGER})]] + [[(t, {"size": 18, "gap": 0 if j else 10})] for j, t in enumerate([d] if isinstance(d, str) else d)])
 
 # 5 ─ ผู้เกี่ยวข้อง
 s = content("01 ปัญหา", "ผู้ใช้ระบบหลัก")
-why = [("นิสิต", "ถ้าใช้ยาก ระบบจะไม่ถูกใช้งานจริง"),
+why = [("นิสิต", "จองห้องและยืมอุปกรณ์ ถ้าใช้ยาก ระบบจะไม่ถูกใช้งานจริง"),
        ("อาจารย์", "ใช้ห้องสอนและประชุม ถ้าตารางชน การสอนสะดุด"),
-       ("เจ้าหน้าที่", "อนุมัติคำขอ จ่ายและรับคืนอุปกรณ์ ถ้าระบบไม่ลดงาน ก็ซ้ำซ้อนเหมือนเดิม")]
+       ("เจ้าหน้าที่", "อนุมัติคำขอ จ่ายและรับคืนอุปกรณ์ ถ้าระบบไม่ลดงาน ก็ซ้ำซากเหมือนเดิม")]
 for i, (g, d) in enumerate(why):
     y = 2.95 + i * 0.9
     box(s, L, y, 2.6, 0.76, BLUE)
@@ -383,14 +418,14 @@ fixes = [("เสียเวลา", ["เช็กห้องว่าง", "
 pw = (CW - 2 * 0.3) / 3
 for i, (prob, fix) in enumerate(fixes):
     x = L + i * (pw + 0.3)
-    box(s, x, 2.95, pw, 1.0, TINT)
-    text(s, x + 0.15, 2.95, pw - 0.3, 1.0, prob, 20, True, BLUE, PP_ALIGN.CENTER, MSO_ANCHOR.MIDDLE)
+    box(s, x, 2.95, pw, 1.0, RTINT)
+    text(s, x + 0.15, 2.95, pw - 0.3, 1.0, prob, 24, True, DANGER, PP_ALIGN.CENTER, MSO_ANCHOR.MIDDLE)
     box(s, x + pw / 2 - 0.16, 4.08, 0.32, 0.36, MUTED, shape=MSO_SHAPE.DOWN_ARROW)
-    box(s, x, 4.57, pw, 1.9, BLUE)
-    text(s, x + 0.2, 4.57, pw - 0.4, 1.9, [[(t, {"gap": 0})] for t in fix], 24, True, WHITE, PP_ALIGN.CENTER, MSO_ANCHOR.MIDDLE)
+    box(s, x, 4.57, pw, 1.9, GTINT)
+    text(s, x + 0.2, 4.57, pw - 0.4, 1.9, [[(t, {"gap": 0})] for t in fix], 24, True, GOOD, PP_ALIGN.CENTER, MSO_ANCHOR.MIDDLE)
 
 # 11 ─ โครงหน้าจอ 1: ค้นหา
-s = content("02 ทางออก · โครงหน้าจอ 1/4", "หน้าค้นหา")
+s = content("02 ทางออก", "โครงหน้าจอ 1/4 · หน้าค้นหา")
 browser(s, "ค้นหา")
 ox, oy = FX, FY
 wrect(s, ox + 0.2, oy + 0.6, 2.3, 3.35)
@@ -421,12 +456,12 @@ region(s, ox + 0.14, oy + 0.54, 2.42, 3.47, 1)
 region(s, ox + 6.0, oy + 1.25, 1.14, 0.76, 2)
 region(s, ox + 6.0, oy + 2.18, 1.14, 0.76, 3)
 wf_panel(s, "นิสิตและอาจารย์",
-         ["ค้นหาด้วยชื่อ หรือกรองตามวัน เวลา ประเภท และจำนวนคน",
+         ["กรองตามวัน เวลา ประเภท และจำนวนคน",
           "เห็นทันทีว่าห้องไหนว่าง ไม่ต้องโทรถาม",
           "ห้องไม่ว่างมีปุ่มดูเวลาอื่น"])
 
 # 12 ─ โครงหน้าจอ 2: ส่งคำขอ (ต่อจากการกดจองห้อง 401 ที่ว่างในหน้าค้นหา)
-s = content("02 ทางออก · โครงหน้าจอ 2/4", "หน้าส่งคำขอ")
+s = content("02 ทางออก", "โครงหน้าจอ 2/4 · หน้าส่งคำขอ")
 browser(s, "ค้นหา")
 wt(s, ox + 0.3, oy + 0.5, 2.5, 0.35, "ส่งคำขอจอง", 12, True)
 for i, (lb, st) in enumerate([("เลือกห้อง", 2), ("กรอกคำขอ", 1), ("รอผลอนุมัติ", 0)]):
@@ -449,7 +484,7 @@ wt(s, ox + 4.85, oy + 1.43, 2.2, 0.3, "ผลการตรวจสถาน�
 pill(s, ox + 4.85, oy + 1.82, "ว่าง", True, w=0.6)
 wt(s, ox + 5.55, oy + 1.82, 1.5, 0.24, "ห้อง 401", 10, True)
 wt(s, ox + 4.85, oy + 2.12, 2.2, 0.25, "10 ต.ค. 2569 เวลา 09:00-12:00", 9)
-wt(s, ox + 4.85, oy + 2.45, 2.2, 0.7, "ถ้าแก้ห้อง วัน หรือเวลา ระบบจะตรวจให้ใหม่ทันที", 9, color=MUTED)
+wt(s, ox + 4.85, oy + 2.45, 2.2, 0.7, [[("ถ้าแก้ห้อง วัน หรือเวลา", {"gap": 0})], [("ระบบจะตรวจให้ใหม่ทันที", {"gap": 0})]], 9, color=MUTED)
 btn(s, ox + 4.95, oy + 3.6, 1.0, "ยกเลิก", False)
 btn(s, ox + 6.1, oy + 3.6, 1.05, "ส่งคำขอ")
 region(s, ox + 0.22, oy + 0.87, 4.25, 0.4, 1)
@@ -461,7 +496,7 @@ wf_panel(s, "นิสิตและอาจารย์",
           "ตรวจสถานะว่างใหม่ทุกครั้งที่แก้ กันจองชนกับตารางเรียน"])
 
 # 13 ─ โครงหน้าจอ 3: คิวคำขอ
-s = content("02 ทางออก · โครงหน้าจอ 3/4", "หน้าตรวจสอบสถานะ")
+s = content("02 ทางออก", "โครงหน้าจอ 3/4 · หน้าตรวจสอบสถานะ")
 browser(s, "ตรวจสอบสถานะ", staff=True)
 wt(s, ox + 0.3, oy + 0.5, 3.0, 0.35, "ตรวจสอบสถานะคำขอ", 12, True)
 for i, tb in enumerate(["ทั้งหมด", "รออนุมัติ", "อนุมัติแล้ว", "ปฏิเสธ"]):
@@ -490,7 +525,7 @@ wf_panel(s, "เจ้าหน้าที่",
           "ปฏิเสธต้องใส่เหตุผล ผู้ขอรู้ว่าต้องแก้อะไร"])
 
 # 16 ─ โครงหน้าจอ 4: บันทึกยืม-คืน (อุปกรณ์) และเช็กอิน-เช็กเอาต์ (ห้อง) ในหน้าเดียว
-s = content("02 ทางออก · โครงหน้าจอ 4/4", "หน้าบันทึกยืม-คืน/เช็กอิน-เช็กเอาต์")
+s = content("02 ทางออก", "โครงหน้าจอ 4/4 · หน้าบันทึกยืม-คืน/เช็กอิน-เช็กเอาต์")
 browser(s, "ยืม-คืน/เช็กอิน-เช็กเอาต์", staff=True)
 wt(s, ox + 0.3, oy + 0.5, 4.0, 0.35, "บันทึกการยืม-คืน/เช็กอิน-เช็กเอาต์", 12, True)
 x = ox + 0.3
@@ -582,7 +617,7 @@ lab(cx(7) - hd - 0.12, YB - 0.3, "ใช่")
 line(s, [(cx(6) - hi, YB), (cx(5) + hd, YB)])
 # อุปกรณ์: บันทึกการยืมและคืน ผ่านเจ้าหน้าที่ (ผู้จ่ายและรับคืน) / ห้อง: บันทึกเช็กอินและเช็กเอาต์ (สองทางเลือก)
 line(s, [(cx(5) - hd, YB), (cx(4) + hp, YB)])
-lab(cx(5) - hd - 0.12, YB - 0.3, "ใช่")
+lab(cx(5) - hd - 0.12, YB - 0.42, "ใช่")
 line(s, [(cx(4) - hp, YB), (cx(1) + RJ, YB)])
 line(s, [(cx(5), YB + vd), (cx(5), YC - vp)])
 lab(cx(5) + 0.07, YB + vd + 0.0, "ไม่")
@@ -615,10 +650,10 @@ io(7, YC, ["แจ้งเหตุผล", "ที่ปฏิเสธ"])
 joint(2, YC)
 
 # 8 ─ ความต้องการ: แบ่งตามผู้ได้ประโยชน์ ส่วนกลางคือได้ทั้งสองฝ่าย
-s = content("03 ความต้องการ", "ระบบช่วยได้หลายอย่าง โดยมี 4 อย่างที่สำคัญที่สุด")
+s = content("03 ความต้องการ", "สิ่งที่ระบบช่วยได้")
 zones = [("นิสิตและอาจารย์", [("เห็นสถานะว่างทันที", 1), ("ค้นหาตามเงื่อนไข", 0), ("ส่งคำขอออนไลน์", 0), ("ติดตามสถานะคำขอ", 0), ("แก้ไขหรือยกเลิกได้", 0)]),
          ("ทั้งสองฝ่าย", [("ตรวจการชนอัตโนมัติ", 1), ("อนุมัติพร้อมเหตุผล", 0), ("แจ้งเตือนอัตโนมัติ", 0)]),
-         ("เจ้าหน้าที่", [("บันทึกยืม-คืน/เช็กอิน-เช็กเอาต์", 1), ("ดึงข้อมูลการใช้งานได้", 1), ("จัดการห้องและอุปกรณ์", 0), ("บันทึกประวัติทุกครั้ง", 0)])]
+         ("เจ้าหน้าที่", [("ดึงข้อมูลการใช้งานได้", 1), ("บันทึกยืม-คืน/เช็กอิน-เช็กเอาต์", 0), ("จัดการห้องและอุปกรณ์", 0), ("บันทึกประวัติทุกครั้ง", 0)])]
 zw, zy, zh = CW / 3, 2.95, 3.5
 box(s, L, zy, 2 * zw, zh, TINT)                                   # ฝั่งผู้ใช้
 box(s, L + zw, zy, 2 * zw, zh, TINT)                              # ฝั่งเจ้าหน้าที่
@@ -634,22 +669,30 @@ for i, (hd_, items) in enumerate(zones):
 
 # 15 ─ สรุป: มีแล้ว + ยังไม่มี (คำถามจากหน้าก่อน) → ต้องไปเก็บต่อ (ข้อมูลจากหน้าก่อน)
 s = content("04 สรุป", "ขั้นต่อไป")
-concl = [("สิ่งที่มีแล้ว", ["ปัญหา และผู้ใช้ระบบหลัก", "สิ่งที่ระบบต้องทำ", "ผังงาน และโครงหน้าจอ"], False),
-         ("คำถามที่ยังตอบไม่ได้", ["ปัญหาเกิดบ่อยแค่ไหน", "เจ้าหน้าที่เสียเวลาเท่าไร", "สำเร็จวัดจากอะไร"], False),
-         ("สิ่งที่ต้องไปเก็บต่อ", ["จำนวนคำขอ และครั้งที่จองชน", "เวลาที่ใช้ต่อหนึ่งคำขอ", "ตัวเลขเป้าหมายจากผู้บริหาร"], True)]
+concl = [("สิ่งที่มีแล้ว", ["ปัญหา และผู้ใช้ระบบหลัก", "สิ่งที่ระบบต้องทำ", "ผังงาน และโครงหน้าจอ"], (TINT, BLUE)),
+         ("คำถามที่ยังตอบไม่ได้", ["ปัญหาเกิดบ่อยแค่ไหน", "เจ้าหน้าที่เสียเวลาเท่าไร", "สำเร็จวัดจากอะไร"], (RTINT, DANGER)),
+         ("สิ่งที่ต้องไปเก็บต่อ", ["จำนวนคำขอ และครั้งที่จองชน", "เวลาที่ใช้ต่อหนึ่งคำขอ", "ตัวเลขเป้าหมายจากผู้บริหาร"], (YTINT, INK))]
 gap = 0.6
 kw = (CW - 2 * gap) / 3
-for i, (h, items, nxt) in enumerate(concl):
+for i, (h, items, (fill, head)) in enumerate(concl):
     x = L + i * (kw + gap)
-    box(s, x, 2.95, kw, 2.35, YTINT if nxt else TINT)
-    text(s, x + 0.3, 3.2, kw - 0.6, 0.5, h, 22, True, BLUE)
+    box(s, x, 2.95, kw, 2.35, fill)
+    text(s, x + 0.3, 3.2, kw - 0.6, 0.5, h, 22, True, head)
     bullets(s, x + 0.3, 3.85, kw - 0.6, 1.4, items, 17)
     if i < 2:
         text(s, x + kw, 2.95, gap, 2.35, "+" if i == 0 else "=", 30, True, MUTED, PP_ALIGN.CENTER, MSO_ANCHOR.MIDDLE)
 
+# 15 ─ ขอบคุณ: หน้าตาคู่กับหน้าปก
+s = base("")
+deco(s, right=False)
+deco(s)
+text(s, 0.6, 2.95, W - 1.2, 1.6, "ขอบคุณที่รับชม", 60, True, BLUE, PP_ALIGN.CENTER, MSO_ANCHOR.MIDDLE)
+pin(s)
+
+OUT = "slides-groupV2.pptx"
 page_numbers()
 shift_up()
 no_shadows()
-prs.save("slides-group1.pptx")
-strip_theme_shadows("slides-group1.pptx")
+prs.save(OUT)
+strip_theme_shadows(OUT)
 print("saved", len(prs.slides), "slides")
